@@ -438,12 +438,9 @@ function makeUniqueQuizCode(reservedCodes: string[]) {
 function getRealtimeUrl() {
   if (process.env.NEXT_PUBLIC_REALTIME_URL) return process.env.NEXT_PUBLIC_REALTIME_URL;
   if (typeof window !== "undefined") {
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      return `${window.location.protocol}//${window.location.hostname}:4001`;
-    }
     return window.location.origin;
   }
-  return "http://localhost:4001";
+  return "http://localhost:3000";
 }
 
 type PodiumParticipant = {
@@ -716,15 +713,8 @@ export default function QuizApp() {
   const [hostPasswordInput, setHostPasswordInput] = useState("");
   const [hostPasswordError, setHostPasswordError] = useState("");
   const [showHostPassword, setShowHostPassword] = useState(false);
-  const [isHostUnlocked, setIsHostUnlocked] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.sessionStorage.getItem("quizze_admin_auth") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [isHostUnlocked, setIsHostUnlocked] = useState(true);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(true);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminTargetTab, setAdminTargetTab] = useState<AdminTab>("overview");
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
@@ -928,15 +918,8 @@ export default function QuizApp() {
   }, [toast]);
 
   const navigateToAdmin = (targetTab: AdminTab = "overview") => {
-    if (isAdminAuthenticated) {
-      setView("admin");
-      setAdminTab(targetTab);
-    } else {
-      setAdminTargetTab(targetTab);
-      setAdminLoginOpen(true);
-      setAdminPasswordInput("");
-      setAdminPasswordError("");
-    }
+    setView("admin");
+    setAdminTab(targetTab);
   };
 
   const submitAdminLogin = async (event: FormEvent<HTMLFormElement>) => {
@@ -1190,15 +1173,7 @@ export default function QuizApp() {
   };
 
   const requestHostQuiz = (quiz: Quiz) => {
-    const status = getQuizStatus(quiz);
-    const isLiveOrWaiting = status === "Waiting" || status === "Live";
-    if (isLiveOrWaiting || isHostUnlocked) {
-      hostQuiz(quiz);
-    } else {
-      setHostAuthQuiz(quiz);
-      setHostPasswordInput("");
-      setHostPasswordError("");
-    }
+    hostQuiz(quiz);
   };
 
   const submitHostAuth = async (event: FormEvent<HTMLFormElement>) => {

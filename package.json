@@ -4,7 +4,7 @@
   "description": "Realtime Multiplayer Live Quiz SaaS Platform",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.mjs",
     "realtime": "node server/realtime.mjs",
     "build": "next build",
     "start": "node server.mjs",
