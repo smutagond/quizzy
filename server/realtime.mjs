@@ -349,6 +349,19 @@ export function attachRealtime(httpServer) {
     publishRoom(room);
   });
 
+  socket.on("host:claim", (payload, callback) => {
+    const { code, hostToken } = payload ?? {};
+    const room = roomForCode(code);
+    if (!room || !hostOwns(room, hostToken)) {
+      callback?.({ ok: false, error: "Cannot find or authenticate this host session." });
+      return;
+    }
+    room.hostSocketId = socket.id;
+    socket.join(room.code);
+    callback?.({ ok: true, code: room.code });
+    publishRoom(room);
+  });
+
   socket.on("host:change-code", (payload, callback) => {
     const { code, hostToken, newCode } = payload ?? {};
     const room = roomForCode(code);

@@ -839,8 +839,34 @@ export default function QuizApp() {
       ? io(customUrl, { reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 })
       : io({ reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 });
     socketRef.current = socket;
-    socket.on("connect", () => setServiceConnected(true));
-    socket.on("disconnect", () => setServiceConnected(false));
+    socket.on("connect", () => {
+      console.log("Realtime socket connected successfully:", socket.id);
+      setServiceConnected(true);
+      const activeQuiz = activeHostQuizRef.current;
+      if (activeQuiz?.code && activeQuiz?.hostToken) {
+        socket.emit("host:claim", {
+          code: activeQuiz.code,
+          hostToken: activeQuiz.hostToken,
+        }, (res?: { ok: boolean }) => {
+          if (!res?.ok) {
+            socket.emit("host:create", {
+              code: activeQuiz.code,
+              title: activeQuiz.title,
+              questions: activeQuiz.questions,
+              hostToken: activeQuiz.hostToken,
+              reservedCodes: [],
+            });
+          }
+        });
+      }
+    });
+    socket.on("connect_error", (err) => {
+      console.warn("Realtime socket connect_error:", err.message);
+    });
+    socket.on("disconnect", (reason) => {
+      console.warn("Realtime socket disconnected:", reason);
+      setServiceConnected(false);
+    });
     socket.on("host:state", (state: HostSession) => {
       if (activeHostQuizRef.current && state.code !== activeHostQuizRef.current.code) return;
       setHostSession(state);
@@ -2329,7 +2355,31 @@ export default function QuizApp() {
                     )}
                   </div>
                 </div>
-                {!serviceConnected && <div className="service-warning" role="status">Realtime service disconnected. Room updates are paused until the host reconnects.</div>}
+                {!serviceConnected && (
+                  <div className="service-warning" role="status" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                    <span>Realtime service disconnected. Reconnecting in the background...</span>
+                    <button
+                      type="button"
+                      className="button small-button button-outline"
+                      style={{ padding: "4px 10px", fontSize: "12px", background: "#fff" }}
+                      onClick={() => {
+                        socketRef.current?.connect();
+                        const activeQuiz = activeHostQuizRef.current;
+                        if (activeQuiz && socketRef.current) {
+                          socketRef.current.emit("host:create", {
+                            code: activeQuiz.code,
+                            title: activeQuiz.title,
+                            questions: activeQuiz.questions,
+                            hostToken: activeQuiz.hostToken,
+                            reservedCodes: [],
+                          });
+                        }
+                      }}
+                    >
+                      Reconnect Now
+                    </button>
+                  </div>
+                )}
                 <div className="host-console-grid">
                   <section className="host-stage-card">
                     {hostSession?.status === "waiting" ? (
@@ -2459,7 +2509,31 @@ export default function QuizApp() {
                         />
                       </div>
                     ) : (
-                      <div className="host-ended-stage"><span className="waiting-illustration"><Icon name="clock" size={24} /></span><h2>Connecting to your room…</h2><p>Hang tight while the live session service responds.</p></div>
+                      <div className="host-ended-stage">
+                        <span className="waiting-illustration"><Icon name="clock" size={24} /></span>
+                        <h2>Connecting to room {activeHostQuiz?.code}…</h2>
+                        <p>Waiting for live realtime service to synchronize.</p>
+                        <button
+                          type="button"
+                          className="button button-outline"
+                          style={{ marginTop: "12px" }}
+                          onClick={() => {
+                            socketRef.current?.connect();
+                            const quiz = activeHostQuizRef.current;
+                            if (quiz && socketRef.current) {
+                              socketRef.current.emit("host:create", {
+                                code: quiz.code,
+                                title: quiz.title,
+                                questions: quiz.questions,
+                                hostToken: quiz.hostToken,
+                                reservedCodes: [],
+                              });
+                            }
+                          }}
+                        >
+                          Retry Sync
+                        </button>
+                      </div>
                     )}
                   </section>
 

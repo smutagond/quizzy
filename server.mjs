@@ -1,9 +1,17 @@
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import next from "next";
 import { attachRealtime } from "./server/realtime.mjs";
 
 const port = parseInt(process.env.PORT || "3000", 10);
 const dev = process.env.NODE_ENV !== "production";
+
+if (!dev && !existsSync("./.next/BUILD_ID")) {
+  console.log("No production build found in .next. Running next build...");
+  execSync("npx next build", { stdio: "inherit" });
+}
+
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
