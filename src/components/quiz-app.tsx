@@ -834,10 +834,17 @@ export default function QuizApp() {
   }, [quizToDelete, dataResetDialog]);
 
   useEffect(() => {
-    const customUrl = process.env.NEXT_PUBLIC_REALTIME_URL;
-    const socket = customUrl
-      ? io(customUrl, { reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 })
-      : io({ reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 });
+    const targetUrl = process.env.NEXT_PUBLIC_REALTIME_URL
+      || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+
+    const socket = io(targetUrl, {
+      path: "/socket.io",
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: 100,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+    });
     socketRef.current = socket;
     socket.on("connect", () => {
       console.log("Realtime socket connected successfully:", socket.id);
@@ -2320,6 +2327,12 @@ export default function QuizApp() {
                       <span className="section-kicker">HOST CONSOLE</span>
                       <h1>{hostSession?.status === "live" ? "You’re live!" : hostSession?.status === "ended" ? "Quiz finished" : "Your room is ready"}</h1>
                       <p>{activeHostQuiz?.title ?? hostSession?.title ?? "Prepare the room and bring your students in."}</p>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "8px", fontSize: "12px", fontWeight: 600 }}>
+                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: serviceConnected ? "#10b981" : "#f59e0b", display: "inline-block", boxShadow: serviceConnected ? "0 0 8px #10b981" : "none" }} />
+                        <span style={{ color: serviceConnected ? "#059669" : "#d97706" }}>
+                          {serviceConnected ? "Live Multiplayer Connected" : "Connecting to Multiplayer Hub..."}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div className="host-top-controls">
@@ -2355,51 +2368,78 @@ export default function QuizApp() {
                     )}
                   </div>
                 </div>
-                {!serviceConnected && (
-                  <div className="service-warning" role="status" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-                    <span>Realtime service disconnected. Reconnecting in the background...</span>
-                    <button
-                      type="button"
-                      className="button small-button button-outline"
-                      style={{ padding: "4px 10px", fontSize: "12px", background: "#fff" }}
-                      onClick={() => {
-                        socketRef.current?.connect();
-                        const activeQuiz = activeHostQuizRef.current;
-                        if (activeQuiz && socketRef.current) {
-                          socketRef.current.emit("host:create", {
-                            code: activeQuiz.code,
-                            title: activeQuiz.title,
-                            questions: activeQuiz.questions,
-                            hostToken: activeQuiz.hostToken,
-                            reservedCodes: [],
-                          });
-                        }
-                      }}
-                    >
-                      Reconnect Now
-                    </button>
-                  </div>
-                )}
                 <div className="host-console-grid">
                   <section className="host-stage-card">
-                    {hostSession?.status === "waiting" ? (
+                    {hostSession?.status === "waiting" || (!hostSession && activeHostQuiz) ? (
                       <>
-                        <div className="host-stage-kicker"><span className="status-pill status-waiting"><i /> WAITING ROOM</span><span>{hostSession.participants.length} joined</span></div>
-                        <div className="waiting-stage">
-                          <span className="waiting-illustration"><Icon name="users" size={26} /></span>
-                          <h2>Gather your people.</h2>
-                          <p>Share the six-digit code. Students can join now; the quiz won’t begin until you start it.</p>
-                          <div className="big-room-code-wrap">
-                            <span className="big-room-code">{hostSession.code}</span>
+                        <div className="host-stage-kicker">
+                          <span className={`status-pill ${serviceConnected ? "status-waiting" : "status-live"}`}>
+                            <i /> {serviceConnected ? "WAITING ROOM" : "CONNECTING..."}
+                          </span>
+                          <span>{(hostSession?.participants?.length ?? 0)} joined</span>
+                        </div>
+                        <div className="waiting-stage" style={{ padding: "30px 20px" }}>
+                          <span className="waiting-illustration" style={{ width: "60px", height: "60px", borderRadius: "50%", background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#4f46e5" }}>
+                            <Icon name="users" size={28} />
+                          </span>
+                          <h2 style={{ fontSize: "24px", fontWeight: 800, margin: "14px 0 6px", color: "#111827" }}>Gather your students</h2>
+                          <p style={{ fontSize: "14px", color: "#6b7280", maxWidth: "420px", margin: "0 auto 16px" }}>
+                            Share the game PIN with your students to let them join:
+                          </p>
+                          <div className="big-room-code-wrap" style={{ margin: "10px 0 16px" }}>
+                            <span className="big-room-code" style={{ fontSize: "44px", letterSpacing: "6px", color: "#4f46e5", fontWeight: 900 }}>
+                              {activeHostQuiz?.code ?? hostSession?.code ?? "..."}
+                            </span>
                           </div>
-                          <div className="room-actions">
-                            <button type="button" className="button button-outline" onClick={() => updateHostedQuiz("host:lock", { locked: !hostSession.locked })}><Icon name={hostSession.locked ? "lock" : "users"} size={15} /> {hostSession.locked ? "Room locked" : "Lock room"}</button>
+                          <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginBottom: "24px" }}>
+                            <button
+                              type="button"
+                              className="button button-outline small-button"
+                              onClick={() => copyCode(activeHostQuiz?.code ?? hostSession?.code ?? "")}
+                              title="Copy game code"
+                              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                            >
+                              <Icon name="copy" size={14} /> Copy PIN
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-outline small-button"
+                              onClick={() => {
+                                if (typeof window !== "undefined") {
+                                  navigator.clipboard.writeText(window.location.origin);
+                                  setToast("Website link copied!");
+                                }
+                              }}
+                              title="Copy website link"
+                              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                            >
+                              <Icon name="arrow" size={14} /> Copy Website Link
+                            </button>
+                          </div>
+
+                          <div className="room-actions" style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                            <button
+                              type="button"
+                              className="button button-outline"
+                              onClick={() => updateHostedQuiz("host:lock", { locked: !hostSession?.locked })}
+                            >
+                              <Icon name={hostSession?.locked ? "lock" : "users"} size={15} />
+                              {hostSession?.locked ? "Room locked" : "Lock room"}
+                            </button>
                             <button
                               type="button"
                               className="button button-dark"
-                              disabled={hostSession.participants.length === 0}
+                              style={{
+                                background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+                                color: "#fff",
+                                fontWeight: 700,
+                                padding: "12px 28px",
+                                fontSize: "15px",
+                                borderRadius: "10px",
+                              }}
+                              disabled={!hostSession?.participants?.length}
                               onClick={() => {
-                                if (!hostSession.locked && hostSettings.autoLockOnStart) {
+                                if (hostSession && !hostSession.locked && hostSettings.autoLockOnStart) {
                                   updateHostedQuiz("host:lock", { locked: true });
                                 }
                                 updateHostedQuiz("host:start");
@@ -2408,8 +2448,11 @@ export default function QuizApp() {
                               <Icon name="play" size={15} /> Start quiz
                             </button>
                           </div>
-                          {!hostSession.participants.length && <span className="host-control-hint">Waiting for at least one student to join.</span>}
-                          {!hostSession.locked && !hostSettings.autoLockOnStart && <span className="host-control-hint">Lock the room when everyone is in, then start.</span>}
+                          {!hostSession?.participants?.length && (
+                            <span className="host-control-hint" style={{ marginTop: "16px", color: "#6b7280" }}>
+                              Joined students will show up in the live leaderboard on the right.
+                            </span>
+                          )}
                         </div>
                       </>
                     ) : hostSession?.status === "starting" || hostSession?.phase === "countdown" ? (
@@ -2511,27 +2554,15 @@ export default function QuizApp() {
                     ) : (
                       <div className="host-ended-stage">
                         <span className="waiting-illustration"><Icon name="clock" size={24} /></span>
-                        <h2>Connecting to room {activeHostQuiz?.code}…</h2>
-                        <p>Waiting for live realtime service to synchronize.</p>
+                        <h2>Preparing host room…</h2>
+                        <p>Select a quiz from My Quizzes to start hosting.</p>
                         <button
                           type="button"
-                          className="button button-outline"
+                          className="button button-primary"
                           style={{ marginTop: "12px" }}
-                          onClick={() => {
-                            socketRef.current?.connect();
-                            const quiz = activeHostQuizRef.current;
-                            if (quiz && socketRef.current) {
-                              socketRef.current.emit("host:create", {
-                                code: quiz.code,
-                                title: quiz.title,
-                                questions: quiz.questions,
-                                hostToken: quiz.hostToken,
-                                reservedCodes: [],
-                              });
-                            }
-                          }}
+                          onClick={() => setAdminTab("quizzes")}
                         >
-                          Retry Sync
+                          Browse Quizzes
                         </button>
                       </div>
                     )}
