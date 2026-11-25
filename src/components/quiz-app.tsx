@@ -2410,6 +2410,11 @@ export default function QuizApp() {
                           <span>{(hostSession?.participants?.length ?? 0)} joined</span>
                         </div>
                         <div className="waiting-stage" style={{ padding: "24px 20px" }}>
+                          <div className="big-room-code-wrap" style={{ margin: "4px 0 18px" }}>
+                            <span className="big-room-code" style={{ fontSize: "44px", letterSpacing: "6px", color: "#4f46e5", fontWeight: 900 }}>
+                              {activeHostQuiz?.code ?? hostSession?.code ?? "..."}
+                            </span>
+                          </div>
                           <div className="room-actions" style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                             <button
                               type="button"
