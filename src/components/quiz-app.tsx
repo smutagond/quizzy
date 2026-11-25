@@ -2364,12 +2364,6 @@ export default function QuizApp() {
                       <span className="section-kicker">HOST CONSOLE</span>
                       <h1>{hostSession?.status === "live" ? "You’re live!" : hostSession?.status === "ended" ? "Quiz finished" : "Your room is ready"}</h1>
                       <p>{activeHostQuiz?.title ?? hostSession?.title ?? "Prepare the room and bring your students in."}</p>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "8px", fontSize: "12px", fontWeight: 600 }}>
-                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: serviceConnected ? "#10b981" : "#f59e0b", display: "inline-block", boxShadow: serviceConnected ? "0 0 8px #10b981" : "none" }} />
-                        <span style={{ color: serviceConnected ? "#059669" : "#d97706" }}>
-                          {serviceConnected ? "Live Multiplayer Connected" : "Connecting to Multiplayer Hub..."}
-                        </span>
-                      </div>
                     </div>
                   </div>
                   <div className="host-top-controls">
@@ -2415,45 +2409,7 @@ export default function QuizApp() {
                           </span>
                           <span>{(hostSession?.participants?.length ?? 0)} joined</span>
                         </div>
-                        <div className="waiting-stage" style={{ padding: "30px 20px" }}>
-                          <span className="waiting-illustration" style={{ width: "60px", height: "60px", borderRadius: "50%", background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#4f46e5" }}>
-                            <Icon name="users" size={28} />
-                          </span>
-                          <h2 style={{ fontSize: "24px", fontWeight: 800, margin: "14px 0 6px", color: "#111827" }}>Gather your students</h2>
-                          <p style={{ fontSize: "14px", color: "#6b7280", maxWidth: "420px", margin: "0 auto 16px" }}>
-                            Share the game PIN with your students to let them join:
-                          </p>
-                          <div className="big-room-code-wrap" style={{ margin: "10px 0 16px" }}>
-                            <span className="big-room-code" style={{ fontSize: "44px", letterSpacing: "6px", color: "#4f46e5", fontWeight: 900 }}>
-                              {activeHostQuiz?.code ?? hostSession?.code ?? "..."}
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginBottom: "24px" }}>
-                            <button
-                              type="button"
-                              className="button button-outline small-button"
-                              onClick={() => copyCode(activeHostQuiz?.code ?? hostSession?.code ?? "")}
-                              title="Copy game code"
-                              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                            >
-                              <Icon name="copy" size={14} /> Copy PIN
-                            </button>
-                            <button
-                              type="button"
-                              className="button button-outline small-button"
-                              onClick={() => {
-                                if (typeof window !== "undefined") {
-                                  navigator.clipboard.writeText(window.location.origin);
-                                  setToast("Website link copied!");
-                                }
-                              }}
-                              title="Copy website link"
-                              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                            >
-                              <Icon name="arrow" size={14} /> Copy Website Link
-                            </button>
-                          </div>
-
+                        <div className="waiting-stage" style={{ padding: "24px 20px" }}>
                           <div className="room-actions" style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                             <button
                               type="button"
