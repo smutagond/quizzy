@@ -2861,43 +2861,6 @@ export default function QuizApp() {
         </main>
       )}
 
-      {view === "countdown" && playerSession && (
-        <main className="countdown-shell">
-          <header className="play-header">
-            <button type="button" className="logo-button" onClick={exitPlayerToHome}><Logo /></button>
-            <div className="playing-label"><span className="live-dot" /> GET READY</div>
-            <div className="player-chip"><span>{(fullName.trim()[0] || "G").toUpperCase()}</span>{fullName.trim() || "Guest"}</div>
-          </header>
-          <section className="countdown-card">
-            <div className="countdown-pill-top">
-              <Icon name="lightning" size={14} /> {playerSession.questionIndex === 0 && playerSession.status === "starting" ? "QUIZ STARTING" : "NEXT QUESTION"}
-            </div>
-            <span className="section-kicker">{playerSession.title.toUpperCase()}</span>
-            <h1>
-              {playerSession.questionIndex === 0 && playerSession.status === "starting"
-                ? `Get ready, ${fullName.trim().split(/\s+/)[0] || "player"}!`
-                : `Question ${playerSession.questionIndex + 1} coming up!`}
-            </h1>
-            <p>
-              {playerSession.questionIndex === 0 && playerSession.status === "starting"
-                ? "Question 1 drops when the countdown hits zero. Answer fast to earn maximum bonus points!"
-                : "Stay focused and trust your instincts! Faster correct answers earn more points."}
-            </p>
-            <div className="countdown-visual-box">
-              <div className="countdown-number-pulsing" key={countdownSecondsLeft}>
-                {countdownSecondsLeft > 0 ? countdownSecondsLeft : "GO!"}
-              </div>
-              <span className="countdown-unit-text">{countdownSecondsLeft === 1 ? "SECOND" : "SECONDS"}</span>
-            </div>
-            <div className="countdown-meta-row">
-              <span><Icon name="crown" size={14} /> Question {playerSession.questionIndex + 1} of {playerSession.questionCount}</span>
-              <span><Icon name="users" size={14} /> {playerSession.participantCount} {playerSession.participantCount === 1 ? "player" : "players"} in room</span>
-            </div>
-          </section>
-          <p className="play-footnote"><Icon name="globe" size={14} /> Trust your instincts! Quick correct answers earn up to 1,000 points.</p>
-        </main>
-      )}
-
       {view === "play" && playerSession?.question && (
         <main className="play-shell">
           <header className="play-header"><button type="button" className="logo-button" onClick={exitPlayerToHome}><Logo /></button><div className="playing-label"><span className="live-dot" /> LIVE QUIZ</div><div className="player-chip"><span>{(fullName.trim()[0] || "G").toUpperCase()}</span>{fullName.trim() || "Guest"}</div></header>
