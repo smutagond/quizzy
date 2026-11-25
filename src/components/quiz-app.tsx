@@ -569,6 +569,24 @@ function WinnersPodium({
   );
 }
 
+function waitForSocketConnection(socket: Socket, timeoutMs: number): Promise<boolean> {
+  if (socket.connected) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    const handleConnect = () => {
+      window.clearTimeout(timeoutId);
+      socket.off("connect", handleConnect);
+      resolve(true);
+    };
+    const timeoutId = window.setTimeout(() => {
+      socket.off("connect", handleConnect);
+      resolve(false);
+    }, timeoutMs);
+    socket.on("connect", handleConnect);
+    socket.connect();
+  });
+}
+
 export default function QuizApp() {
   const [view, setView] = useState<"home" | "admin" | "waiting" | "countdown" | "play" | "results">("home");
   const [adminTab, setAdminTab] = useState<"overview" | "quizzes" | "create" | "host" | "settings">("overview");
@@ -576,6 +594,7 @@ export default function QuizApp() {
   const [code, setCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [joinError, setJoinError] = useState("");
+  const [isFindingQuiz, setIsFindingQuiz] = useState(false);
   const [serviceConnected, setServiceConnected] = useState(false);
   const [hostSettings, setHostSettings] = useState<HostSettings>(() => {
     if (typeof window === "undefined") return DEFAULT_SETTINGS;
@@ -1001,36 +1020,52 @@ export default function QuizApp() {
   const hasActiveQuiz = Boolean(hostSession && (hostSession.status === "waiting" || hostSession.status === "starting" || hostSession.status === "live"));
   const showLiveHostTab = hasActiveQuiz || (adminTab === "host" && Boolean(hostSession));
 
-  const submitCode = (event: FormEvent<HTMLFormElement>) => {
+  const submitCode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!/^\d{6}$/.test(code)) {
       setJoinError("Enter the 6-digit code shared by your host.");
       return;
     }
     const socket = socketRef.current;
-    if (!socket?.connected) {
-      setJoinError("Connecting to live quiz service... please try again in a few seconds.");
-      socket?.connect();
+    if (!socket) {
+      setJoinError("The live quiz service is unavailable. Please try again later.");
       return;
     }
-    socket.emit("session:check", code, (response: { ok: boolean; reason?: string; locked?: boolean; status?: string }) => {
-      if (!response.ok) {
-        setJoinError(response.reason === "ended"
-          ? "This quiz has ended. Please contact the host."
-          : "This quiz hasn’t started yet. Please contact the host.");
+    setIsFindingQuiz(true);
+    setJoinError("");
+    try {
+      const connected = await waitForSocketConnection(socket, 15000);
+      if (!connected) {
+        setJoinError("Could not connect to the live quiz service. Check your connection and try again.");
         return;
       }
-      if (response.status === "live") {
-        setJoinError("This quiz is currently in progress. Please contact the host.");
-        return;
-      }
-      if (response.locked) {
-        setJoinError("The host has locked this waiting room. Please contact the host if you need to join.");
-        return;
-      }
-      setJoinError("");
-      setJoinStep("name");
-    });
+
+      await new Promise<void>((resolve) => {
+        socket.timeout(10000).emit(
+          "session:check",
+          code,
+          (error: Error | null, response: { ok: boolean; reason?: string; locked?: boolean; status?: string }) => {
+            if (error) {
+              setJoinError("The live quiz service did not respond. Please try again.");
+            } else if (!response?.ok) {
+              setJoinError(response?.reason === "ended"
+                ? "This quiz has ended. Please contact the host."
+                : "This quiz hasn’t started yet. Please contact the host.");
+            } else if (response.status === "live") {
+              setJoinError("This quiz is currently in progress. Please contact the host.");
+            } else if (response.locked) {
+              setJoinError("The host has locked this waiting room. Please contact the host if you need to join.");
+            } else {
+              setJoinError("");
+              setJoinStep("name");
+            }
+            resolve();
+          },
+        );
+      });
+    } finally {
+      setIsFindingQuiz(false);
+    }
   };
 
   const submitName = (event: FormEvent<HTMLFormElement>) => {
@@ -1748,7 +1783,9 @@ export default function QuizApp() {
                         autoFocus={false}
                       />
                       {joinError && <p className="field-error" id="join-error">{joinError}</p>}
-                      <button className="button button-lime button-wide" type="submit">Find my quiz <Icon name="arrow" size={17} /></button>
+                      <button className="button button-lime button-wide" type="submit" disabled={isFindingQuiz}>
+                        {isFindingQuiz ? "Connecting..." : "Find my quiz"} <Icon name="arrow" size={17} />
+                      </button>
                     </form>
                   ) : (
                     <form onSubmit={submitName}>

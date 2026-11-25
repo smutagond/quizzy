@@ -111,19 +111,14 @@ cp .env.example .env.local
 
 ## 🏃 Running Locally
 
-Start both the realtime engine and the Next.js development server:
+The development and production server starts the Next.js app and Socket.IO service together:
 
-**Terminal 1 — Realtime Socket Server**:
-```bash
-npm run realtime
-```
-*Runs on port 4001.*
-
-**Terminal 2 — Next.js Application**:
 ```bash
 npm run dev
 ```
-*Runs on [http://localhost:3000](http://localhost:3000).*
+Open [http://localhost:3000](http://localhost:3000). No separate realtime process is needed for local development.
+
+To run the realtime engine separately (for example, when deploying the frontend and realtime service independently), use `npm run realtime` and set `NEXT_PUBLIC_REALTIME_URL` on the frontend to the realtime service URL.
 
 ---
 
