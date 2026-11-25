@@ -1,26 +1,11 @@
 import { createServer } from "node:http";
 import { randomInt } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 
-const port = Number(process.env.REALTIME_PORT ?? process.env.PORT ?? 4001);
 const sessions = new Map();
 const timers = new Map();
-const httpServer = createServer((request, response) => {
-  if (request.url === "/health") {
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({ status: "ok", sessions: sessions.size }));
-    return;
-  }
-  response.writeHead(404);
-  response.end();
-});
-
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.WEB_ORIGIN?.split(",") ?? true,
-    methods: ["GET", "POST"],
-  },
-});
+let io = null;
 
 function isValidCode(code) {
   return typeof code === "string" && /^\d{6}$/.test(code);
@@ -299,7 +284,16 @@ function hostOwns(room, hostToken) {
   return room && typeof hostToken === "string" && room.hostToken === hostToken;
 }
 
-io.on("connection", (socket) => {
+export function attachRealtime(httpServer) {
+  if (io) return io;
+  io = new Server(httpServer, {
+    cors: {
+      origin: process.env.WEB_ORIGIN?.split(",") ?? true,
+      methods: ["GET", "POST"],
+    },
+  });
+
+  io.on("connection", (socket) => {
   socket.on("session:check", (code, callback) => {
     const room = isValidCode(code) ? roomForCode(code) : null;
     if (!room) {
@@ -557,6 +551,23 @@ io.on("connection", (socket) => {
   });
 });
 
-httpServer.listen(port, "0.0.0.0", () => {
-  console.log(`Quizz realtime service listening on 0.0.0.0:${port}`);
-});
+  return io;
+}
+
+const isMain = process.argv[1] && fileURLToPath(import.meta.url).replace(/\\/g, "/") === process.argv[1].replace(/\\/g, "/");
+if (isMain) {
+  const standalonePort = Number(process.env.REALTIME_PORT ?? process.env.PORT ?? 4001);
+  const standaloneServer = createServer((req, res) => {
+    if (req.url === "/health") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", sessions: sessions.size }));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  attachRealtime(standaloneServer);
+  standaloneServer.listen(standalonePort, "0.0.0.0", () => {
+    console.log(`Quizzy standalone realtime service listening on 0.0.0.0:${standalonePort}`);
+  });
+}

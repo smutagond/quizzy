@@ -129,7 +129,30 @@ npm run dev
 
 ## 🌐 Production Deployment
 
-### Option A: Vercel (Frontend) + Render / Railway (Realtime Engine)
+### Option A: Render Deployment (Recommended - Single Free Service)
+
+Deploy the entire platform (Next.js web app + Socket.IO realtime engine) as a single Web Service on Render's **Free Tier ($0/month)**:
+
+1. In Render Dashboard, click **New +** → **Web Service**.
+2. Connect your repository: `https://github.com/smutagond/quizzy`.
+3. Configure the fields:
+   - **Name**: `quizzy` (or `quizzy-web`)
+   - **Project**: `My project`
+   - **Region**: Choose closest to you (e.g. `Oregon (US West)`)
+   - **Branch**: `main`
+   - **Root Directory**: *(leave empty)*
+   - **Runtime / Language**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm run start`
+   - **Instance Type**: `Free` ($0/month)
+4. In **Environment Variables**, add:
+   - `NODE_ENV`: `production`
+   - `ADMIN_PASSWORD`: `your_secure_password` (e.g. `Rocky@2005`)
+5. Click **Deploy Web Service**. Render will build and deploy your app. Once deployed, open your live URL!
+
+---
+
+### Option B: Vercel (Frontend) + Render / Railway (Realtime Engine)
 
 1. **Deploy Socket.IO Engine (Railway / Render)**:
    - Root directory: `/`
