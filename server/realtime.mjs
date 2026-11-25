@@ -288,7 +288,7 @@ export function attachRealtime(httpServer) {
   if (io) return io;
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.WEB_ORIGIN?.split(",") ?? true,
+      origin: "*",
       methods: ["GET", "POST"],
     },
   });

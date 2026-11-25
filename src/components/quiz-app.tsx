@@ -435,14 +435,6 @@ function makeUniqueQuizCode(reservedCodes: string[]) {
   throw new Error("No unused quiz codes are available.");
 }
 
-function getRealtimeUrl() {
-  if (process.env.NEXT_PUBLIC_REALTIME_URL) return process.env.NEXT_PUBLIC_REALTIME_URL;
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-  return "";
-}
-
 type PodiumParticipant = {
   id: string;
   name: string;
@@ -842,10 +834,10 @@ export default function QuizApp() {
   }, [quizToDelete, dataResetDialog]);
 
   useEffect(() => {
-    const url = getRealtimeUrl();
-    const socket = url
-      ? io(url, { transports: ["websocket", "polling"], reconnection: true, reconnectionAttempts: 30 })
-      : io({ transports: ["websocket", "polling"], reconnection: true, reconnectionAttempts: 30 });
+    const customUrl = process.env.NEXT_PUBLIC_REALTIME_URL;
+    const socket = customUrl
+      ? io(customUrl, { reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 })
+      : io({ reconnection: true, reconnectionAttempts: 50, reconnectionDelay: 1000 });
     socketRef.current = socket;
     socket.on("connect", () => setServiceConnected(true));
     socket.on("disconnect", () => setServiceConnected(false));
@@ -1207,17 +1199,6 @@ export default function QuizApp() {
   };
 
   const hostQuiz = (quiz: Quiz) => {
-    const socket = socketRef.current;
-    if (!socket?.connected) {
-      setToast("Connecting to live quiz service... starting room in a moment.");
-      if (socket) {
-        socket.connect();
-        socket.once("connect", () => {
-          hostQuiz(quiz);
-        });
-      }
-      return;
-    }
     const hostedQuiz = { ...quiz, hostToken: quiz.hostToken ?? makeSecureToken(), status: "Waiting" as const };
     activeHostQuizRef.current = hostedQuiz;
     setActiveHostQuiz(hostedQuiz);
@@ -1227,7 +1208,17 @@ export default function QuizApp() {
     setAdminTab("host");
     storeQuizRecord(hostedQuiz);
     const originalCode = hostedQuiz.code;
+
     const openRoom = (quizToHost: Quiz, attemptedCodes: string[], retriesLeft: number) => {
+      const socket = socketRef.current;
+      if (!socket) return;
+      if (!socket.connected) {
+        socket.connect();
+        socket.once("connect", () => {
+          openRoom(quizToHost, attemptedCodes, retriesLeft);
+        });
+        return;
+      }
       socket.emit("host:create", {
         code: quizToHost.code,
         title: quizToHost.title,
@@ -1263,6 +1254,7 @@ export default function QuizApp() {
           : `Waiting room is open. Share code ${assignedCode} with your students.`);
       });
     };
+
     openRoom(hostedQuiz, [hostedQuiz.code], 5);
   };
 
