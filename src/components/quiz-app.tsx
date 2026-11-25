@@ -440,7 +440,7 @@ function getRealtimeUrl() {
   if (typeof window !== "undefined") {
     return window.location.origin;
   }
-  return "http://localhost:3000";
+  return "";
 }
 
 type PodiumParticipant = {
@@ -842,7 +842,10 @@ export default function QuizApp() {
   }, [quizToDelete, dataResetDialog]);
 
   useEffect(() => {
-    const socket = io(getRealtimeUrl());
+    const url = getRealtimeUrl();
+    const socket = url
+      ? io(url, { transports: ["websocket", "polling"], reconnection: true, reconnectionAttempts: 30 })
+      : io({ transports: ["websocket", "polling"], reconnection: true, reconnectionAttempts: 30 });
     socketRef.current = socket;
     socket.on("connect", () => setServiceConnected(true));
     socket.on("disconnect", () => setServiceConnected(false));
@@ -981,7 +984,8 @@ export default function QuizApp() {
     }
     const socket = socketRef.current;
     if (!socket?.connected) {
-      setJoinError("The live quiz service is offline. Please ask the host to try again later.");
+      setJoinError("Connecting to live quiz service... please try again in a few seconds.");
+      socket?.connect();
       return;
     }
     socket.emit("session:check", code, (response: { ok: boolean; reason?: string; locked?: boolean; status?: string }) => {
@@ -1205,7 +1209,13 @@ export default function QuizApp() {
   const hostQuiz = (quiz: Quiz) => {
     const socket = socketRef.current;
     if (!socket?.connected) {
-      setToast("The live quiz service is offline. Start the realtime service and try again.");
+      setToast("Connecting to live quiz service... starting room in a moment.");
+      if (socket) {
+        socket.connect();
+        socket.once("connect", () => {
+          hostQuiz(quiz);
+        });
+      }
       return;
     }
     const hostedQuiz = { ...quiz, hostToken: quiz.hostToken ?? makeSecureToken(), status: "Waiting" as const };

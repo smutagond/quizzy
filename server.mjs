@@ -15,6 +15,9 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ status: "ok" }));
     return;
   }
+  if (req.url && req.url.startsWith("/socket.io")) {
+    return;
+  }
   handle(req, res);
 });
 
